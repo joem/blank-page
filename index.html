@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blank Page</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: background-color 1.5s ease;
+    background-color: #ffffff;
+  }
+
+  #help-box {
+    background: rgba(0, 0, 0, 0.75);
+    color: #f0f0f0;
+    border-radius: 12px;
+    padding: 28px 36px;
+    max-width: 420px;
+    width: 90%;
+    opacity: 1;
+    transition: opacity 1s ease;
+    user-select: none;
+    backdrop-filter: blur(4px);
+  }
+
+  #help-box.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #help-box h2 {
+    font-family: system-ui, sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 18px;
+    color: #ffffff;
+    text-transform: uppercase;
+  }
+
+  .binding {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.92rem;
+  }
+
+  .binding:last-child { margin-bottom: 0; }
+
+  kbd {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: monospace;
+    font-size: 0.88rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+
+  kbd:hover {
+    background: rgba(255,255,255,0.3);
+  }
+
+  .desc {
+    color: #cccccc;
+  }
+</style>
+</head>
+<body>
+
+<div id="help-box">
+  <h2>Keybindings</h2>
+
+  <div class="binding">
+    <kbd data-action="fullscreen">F</kbd>
+    <span class="desc">Toggle fullscreen</span>
+  </div>
+  <div class="binding">
+    <kbd data-action="random">R</kbd>
+    <span class="desc">Random background color</span>
+  </div>
+  <div class="binding">
+    <kbd data-action="cycle">C</kbd>
+    <span class="desc">Cycle through colors (constant brightness)</span>
+  </div>
+  <div class="binding">
+    <kbd data-action="stop">Space</kbd>
+    <span class="desc">Stop color cycling</span>
+  </div>
+  <div class="binding">
+    <kbd data-action="escape">Esc</kbd>
+    <span class="desc">Exit fullscreen</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const helpBox = document.getElementById('help-box');
+  const body = document.body;
+
+  // ── idle timer ──────────────────────────────────────────────────────────────
+  let idleTimer = null;
+
+  function scheduleHide() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => helpBox.classList.add('hidden'), 3000);
+  }
+
+  function showHelp() {
+    helpBox.classList.remove('hidden');
+    scheduleHide();
+  }
+
+  scheduleHide();
+
+  // ── background color ────────────────────────────────────────────────────────
+  // Current hue (0–360), saturation, lightness kept at fixed values so
+  // perceived brightness stays roughly constant.
+  let currentHsl = { h: 0, s: 0, l: 100 }; // white in HSL
+
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    return '#' + [f(0), f(8), f(4)].map(v =>
+      Math.round(v * 255).toString(16).padStart(2, '0')
+    ).join('');
+  }
+
+  function applyBg() {
+    body.style.backgroundColor = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
+  }
+
+  // Random color at constant lightness (50) and high saturation
+  function randomColor() {
+    currentHsl = { h: Math.random() * 360, s: 70, l: 55 };
+    applyBg();
+  }
+
+  // ── color cycling ───────────────────────────────────────────────────────────
+  let cycleRaf = null;
+  let lastTime = null;
+  const HUE_SPEED = 30; // degrees per second
+
+  function startCycle() {
+    if (cycleRaf) return;
+    // If currently white, start at a vivid color
+    if (currentHsl.s < 10) currentHsl = { h: 0, s: 70, l: 55 };
+    lastTime = null;
+    function tick(ts) {
+      if (lastTime === null) lastTime = ts;
+      const dt = (ts - lastTime) / 1000;
+      lastTime = ts;
+      currentHsl.h = (currentHsl.h + HUE_SPEED * dt) % 360;
+      applyBg();
+      cycleRaf = requestAnimationFrame(tick);
+    }
+    cycleRaf = requestAnimationFrame(tick);
+  }
+
+  function stopCycle() {
+    if (cycleRaf) { cancelAnimationFrame(cycleRaf); cycleRaf = null; }
+  }
+
+  // ── fullscreen ──────────────────────────────────────────────────────────────
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  function exitFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+
+  // ── action dispatch ─────────────────────────────────────────────────────────
+  function dispatch(action) {
+    switch (action) {
+      case 'fullscreen': toggleFullscreen(); break;
+      case 'random':    stopCycle(); randomColor(); break;
+      case 'cycle':     startCycle(); break;
+      case 'stop':      stopCycle(); break;
+      case 'escape':    exitFullscreen(); break;
+    }
+  }
+
+  // ── keyboard ────────────────────────────────────────────────────────────────
+  const KEY_MAP = {
+    'f': 'fullscreen', 'F': 'fullscreen',
+    'r': 'random',     'R': 'random',
+    'c': 'cycle',      'C': 'cycle',
+    ' ': 'stop',
+    'Escape': 'escape',
+  };
+
+  document.addEventListener('keydown', e => {
+    const action = KEY_MAP[e.key];
+    if (action) {
+      dispatch(action);
+      showHelp();
+    } else {
+      showHelp();
+    }
+  });
+
+  // ── mouse click ─────────────────────────────────────────────────────────────
+  document.addEventListener('click', e => {
+    // kbd clicks are handled separately; body clicks just show help
+    if (!e.target.closest('kbd')) showHelp();
+  });
+
+  // ── kbd button clicks ────────────────────────────────────────────────────────
+  document.querySelectorAll('kbd[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      dispatch(btn.dataset.action);
+      showHelp();
+    });
+  });
+})();
+</script>
+</body>
+</html>
