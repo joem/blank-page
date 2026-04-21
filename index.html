@@ -145,7 +145,7 @@
   </div>
   <div class="binding">
     <kbd data-action="cycle">C</kbd>
-    <span class="desc" data-action="cycle">Cycle through colors (constant brightness)</span>
+    <span class="desc" data-action="cycle">Toggle color cycling</span>
   </div>
   <div class="binding">
     <kbd data-action="stop">Space</kbd>
@@ -334,21 +334,33 @@
   }
 
   // ── color cycling ───────────────────────────────────────────────────────────
-  let cycleRaf = null;
-  let lastTime = null;
-  const HUE_SPEED = 30;
+  let cycleRaf  = null;
+  let lastTime  = null;
+  let lightPhase = 0;          // radians; drives sinusoidal lightness
+  const HUE_SPEED   = 20;      // degrees/second at peak
+  const LIGHT_SPEED = 0.25;    // radians/second → full cycle ≈ 25 s
 
   function startCycle() {
-    if (cycleRaf) return;
+    if (cycleRaf) { stopCycle(); return; }   // toggle off
     clearTimeout(randomTransitionTimer);
-    if (currentHsl.s < 10) currentHsl = { h: 0, s: 70, l: 55 };
+    // Ensure we have a hue and some saturation to work with
+    if (currentHsl.s < 30) { currentHsl.s = 70; }
+    // Seed lightPhase from current lightness so cycling starts seamlessly
+    const lClamped = Math.max(5, Math.min(95, currentHsl.l));
+    lightPhase = Math.asin((lClamped - 50) / 45);
     body.style.transition = 'none';
     lastTime = null;
     function tick(ts) {
       if (lastTime === null) lastTime = ts;
       const dt = (ts - lastTime) / 1000;
       lastTime = ts;
-      currentHsl.h = (currentHsl.h + HUE_SPEED * dt) % 360;
+      // Advance lightness sinusoidally — sin naturally dwells at extremes
+      lightPhase = (lightPhase + LIGHT_SPEED * dt) % (2 * Math.PI);
+      currentHsl.l = 50 + 45 * Math.sin(lightPhase);
+      // Slow hue near dark/light extremes so indistinguishable near-blacks
+      // and near-whites don't race through hues invisibly
+      const hueFactor = 0.1 + 0.9 * Math.abs(Math.cos(lightPhase));
+      currentHsl.h = (currentHsl.h + HUE_SPEED * hueFactor * dt) % 360;
       applyBg();
       cycleRaf = requestAnimationFrame(tick);
     }
