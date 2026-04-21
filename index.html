@@ -25,7 +25,7 @@
     color: #f0f0f0;
     border-radius: 12px;
     padding: 28px 36px;
-    max-width: 460px;
+    max-width: 480px;
     width: 90%;
     opacity: 1;
     transition: opacity 2.5s ease;
@@ -55,7 +55,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #999;
-    margin: 18px 0 10px;
+    margin: 16px 0 8px;
   }
 
   .binding {
@@ -66,8 +66,6 @@
     font-family: system-ui, sans-serif;
     font-size: 0.92rem;
   }
-
-  .binding:last-child { margin-bottom: 0; }
 
   kbd {
     display: inline-block;
@@ -85,18 +83,23 @@
 
   kbd:hover { background: rgba(255,255,255,0.3); }
 
-  .desc { color: #cccccc; }
+  .desc {
+    color: #cccccc;
+    cursor: pointer;
+  }
 
-  /* ── preset color swatches ─────────────────────────────────────── */
-  #presets {
+  .desc:hover { color: #ffffff; }
+
+  .swatch-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    margin-bottom: 4px;
   }
 
   .swatch {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 6px;
     cursor: pointer;
     border: 1px solid rgba(255,255,255,0.25);
@@ -108,6 +111,23 @@
     transform: scale(1.18);
     box-shadow: 0 0 0 2px rgba(255,255,255,0.6);
   }
+
+  #color-input {
+    width: 100%;
+    margin-top: 16px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 7px 12px;
+    color: #f0f0f0;
+    font-family: monospace;
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  #color-input:focus { border-color: rgba(255,255,255,0.6); }
+  #color-input.invalid { border-color: rgba(255,80,80,0.8); }
 </style>
 </head>
 <body>
@@ -117,64 +137,86 @@
 
   <div class="binding">
     <kbd data-action="fullscreen">F</kbd>
-    <span class="desc">Toggle fullscreen</span>
+    <span class="desc" data-action="fullscreen">Toggle fullscreen</span>
   </div>
   <div class="binding">
     <kbd data-action="random">R</kbd>
-    <span class="desc">Random background color</span>
+    <span class="desc" data-action="random">Random background color</span>
   </div>
   <div class="binding">
     <kbd data-action="cycle">C</kbd>
-    <span class="desc">Cycle through colors (constant brightness)</span>
+    <span class="desc" data-action="cycle">Cycle through colors (constant brightness)</span>
   </div>
   <div class="binding">
     <kbd data-action="stop">Space</kbd>
-    <span class="desc">Stop color cycling</span>
+    <span class="desc" data-action="stop">Stop color cycling</span>
   </div>
   <div class="binding">
     <kbd data-action="escape">Esc</kbd>
-    <span class="desc">Exit fullscreen</span>
+    <span class="desc" data-action="escape">Exit fullscreen</span>
   </div>
 
-  <h3>Preset colors</h3>
-  <div id="presets"></div>
+  <h3>Lighter presets</h3>
+  <div id="presets-light" class="swatch-row"></div>
+
+  <h3>Darker presets</h3>
+  <div id="presets-dark" class="swatch-row"></div>
+
+  <input id="color-input" type="text" placeholder="#ffffff" maxlength="7"
+         spellcheck="false" autocomplete="off">
 </div>
 
 <script>
 (function () {
-  const helpBox = document.getElementById('help-box');
-  const presetsEl = document.getElementById('presets');
-  const body = document.body;
+  const helpBox   = document.getElementById('help-box');
+  const colorInput = document.getElementById('color-input');
+  const body      = document.body;
 
   // ── preset colors ───────────────────────────────────────────────────────────
-  // Each entry: [label, hex, hsl-equivalent for currentHsl]
-  const PRESETS = [
-    { label: 'Full white',    hex: '#ffffff', hsl: { h: 0,   s: 0,  l: 100 } },
-    { label: 'Near white',    hex: '#f0ede8', hsl: { h: 30,  s: 20, l: 93  } },
-    { label: 'Warm grey',     hex: '#c8c2b8', hsl: { h: 35,  s: 10, l: 75  } },
-    { label: 'Cool grey',     hex: '#b8bec8', hsl: { h: 220, s: 10, l: 75  } },
-    { label: 'Sage',          hex: '#b2bfb2', hsl: { h: 120, s: 8,  l: 72  } },
-    { label: 'Dusty blue',    hex: '#a8b8c8', hsl: { h: 210, s: 18, l: 72  } },
-    { label: 'Dusty rose',    hex: '#c8adb0', hsl: { h: 354, s: 18, l: 73  } },
-    { label: 'Dusty lavender',hex: '#b8adc8', hsl: { h: 270, s: 16, l: 73  } },
-    { label: 'Near black',    hex: '#1a1a1a', hsl: { h: 0,   s: 0,  l: 10  } },
-    { label: 'Full black',    hex: '#000000', hsl: { h: 0,   s: 0,  l: 0   } },
+  const LIGHTER_PRESETS = [
+    { label: 'Full white',      hex: '#ffffff' },
+    { label: 'Near white',      hex: '#f0ede8' },
+    { label: 'Warm grey',       hex: '#c5bfb5' },
+    { label: 'Cool grey',       hex: '#b5bbc5' },
+    { label: 'Sage',            hex: '#b0bcb0' },
+    { label: 'Dusty blue',      hex: '#a5b5c5' },
+    { label: 'Dusty rose',      hex: '#c5aab0' },
+    { label: 'Dusty lavender',  hex: '#b5aac5' },
   ];
 
-  PRESETS.forEach(preset => {
-    const sw = document.createElement('div');
-    sw.className = 'swatch';
-    sw.style.background = preset.hex;
-    sw.title = preset.label;
-    sw.addEventListener('click', e => {
-      e.stopPropagation();
-      stopCycle();
-      currentHsl = { ...preset.hsl };
-      body.style.backgroundColor = preset.hex;
-      showHelp();
+  const DARKER_PRESETS = [
+    { label: 'Full black',      hex: '#000000' },
+    { label: 'Near black',      hex: '#1a1a1a' },
+    { label: 'Dark warm',       hex: '#2a2622' },
+    { label: 'Dark slate',      hex: '#24272e' },
+    { label: 'Dark sage',       hex: '#1d251d' },
+    { label: 'Dark navy',       hex: '#1d2935' },
+    { label: 'Dark rose',       hex: '#2f1e21' },
+    { label: 'Dark lavender',   hex: '#241c2c' },
+  ];
+
+  function buildSwatchRow(presets, id) {
+    const container = document.getElementById(id);
+    presets.forEach(preset => {
+      const sw = document.createElement('div');
+      sw.className = 'swatch';
+      sw.style.background = preset.hex;
+      sw.title = preset.label;
+      sw.addEventListener('click', e => {
+        e.stopPropagation();
+        stopCycle();
+        const hsl = hexToHsl(preset.hex);
+        if (hsl) currentHsl = hsl;
+        body.style.backgroundColor = preset.hex;
+        setHexDisplay(preset.hex);
+        showHelp();
+      });
+      container.appendChild(sw);
     });
-    presetsEl.appendChild(sw);
-  });
+  }
+
+  buildSwatchRow(LIGHTER_PRESETS, 'presets-light');
+  buildSwatchRow(DARKER_PRESETS,  'presets-dark');
 
   // ── idle / help-box timer ───────────────────────────────────────────────────
   let idleTimer = null;
@@ -201,7 +243,6 @@
   function showCursor() {
     body.classList.remove('hide-cursor');
     clearTimeout(cursorTimer);
-    // Only schedule hide when help box is not visible
     if (!isHelpVisible()) scheduleCursorHide();
   }
 
@@ -212,19 +253,17 @@
 
   document.addEventListener('mousemove', () => showCursor());
 
-  // When help box becomes visible, cancel cursor-hide and show cursor
-  const observer = new MutationObserver(() => {
+  new MutationObserver(() => {
     if (isHelpVisible()) {
       body.classList.remove('hide-cursor');
       clearTimeout(cursorTimer);
     } else {
       scheduleCursorHide();
     }
-  });
-  observer.observe(helpBox, { attributes: true, attributeFilter: ['class'] });
+  }).observe(helpBox, { attributes: true, attributeFilter: ['class'] });
 
-  // ── background color ────────────────────────────────────────────────────────
-  let currentHsl = { h: 0, s: 0, l: 100 }; // white
+  // ── color helpers ───────────────────────────────────────────────────────────
+  let currentHsl = { h: 0, s: 0, l: 100 };
 
   function hslToHex(h, s, l) {
     s /= 100; l /= 100;
@@ -238,23 +277,59 @@
     ).join('');
   }
 
-  function applyBg() {
-    body.style.backgroundColor = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
+  function hexToHsl(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
   }
 
+  function setHexDisplay(hex) {
+    if (document.activeElement !== colorInput) {
+      colorInput.value = hex;
+      colorInput.classList.remove('invalid');
+    }
+  }
+
+  function applyBg() {
+    const hex = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
+    body.style.backgroundColor = hex;
+    setHexDisplay(hex);
+  }
+
+  // ── random color (fast transition) ──────────────────────────────────────────
+  let randomTransitionTimer = null;
+
   function randomColor() {
+    clearTimeout(randomTransitionTimer);
+    body.style.transition = 'background-color 0.4s ease';
     currentHsl = { h: Math.random() * 360, s: 70, l: 55 };
     applyBg();
+    randomTransitionTimer = setTimeout(() => { body.style.transition = ''; }, 500);
   }
 
   // ── color cycling ───────────────────────────────────────────────────────────
   let cycleRaf = null;
   let lastTime = null;
-  const HUE_SPEED = 30; // degrees per second
+  const HUE_SPEED = 30;
 
   function startCycle() {
     if (cycleRaf) return;
+    clearTimeout(randomTransitionTimer);
     if (currentHsl.s < 10) currentHsl = { h: 0, s: 70, l: 55 };
+    body.style.transition = 'none';
     lastTime = null;
     function tick(ts) {
       if (lastTime === null) lastTime = ts;
@@ -268,7 +343,11 @@
   }
 
   function stopCycle() {
-    if (cycleRaf) { cancelAnimationFrame(cycleRaf); cycleRaf = null; }
+    if (cycleRaf) {
+      cancelAnimationFrame(cycleRaf);
+      cycleRaf = null;
+      body.style.transition = '';
+    }
   }
 
   // ── fullscreen ──────────────────────────────────────────────────────────────
@@ -305,24 +384,55 @@
   };
 
   document.addEventListener('keydown', e => {
+    if (document.activeElement === colorInput) return;
     const action = KEY_MAP[e.key];
     if (action) dispatch(action);
     showHelp();
   });
 
-  // ── mouse click ─────────────────────────────────────────────────────────────
+  // ── mouse clicks ────────────────────────────────────────────────────────────
   document.addEventListener('click', e => {
-    if (!e.target.closest('kbd') && !e.target.closest('.swatch')) showHelp();
+    const t = e.target;
+    if (!t.closest('kbd') && !t.closest('.swatch') && !t.closest('.desc') && t !== colorInput) {
+      showHelp();
+    }
   });
 
-  // ── kbd button clicks ────────────────────────────────────────────────────────
-  document.querySelectorAll('kbd[data-action]').forEach(btn => {
-    btn.addEventListener('click', e => {
+  document.querySelectorAll('kbd[data-action], .desc[data-action]').forEach(el => {
+    el.addEventListener('click', e => {
       e.stopPropagation();
-      dispatch(btn.dataset.action);
+      dispatch(el.dataset.action);
       showHelp();
     });
   });
+
+  // ── hex color input ─────────────────────────────────────────────────────────
+  colorInput.addEventListener('keydown', e => e.stopPropagation());
+  colorInput.addEventListener('click',   e => e.stopPropagation());
+
+  colorInput.addEventListener('input', () => {
+    let val = colorInput.value.trim();
+    if (val && !val.startsWith('#')) val = '#' + val;
+    const ok = /^#[0-9a-fA-F]{6}$/.test(val) || /^#[0-9a-fA-F]{3}$/.test(val);
+    if (ok) {
+      colorInput.classList.remove('invalid');
+      stopCycle();
+      const hsl = hexToHsl(val);
+      if (hsl) currentHsl = hsl;
+      body.style.transition = 'none';
+      body.style.backgroundColor = val;
+    } else {
+      colorInput.classList.toggle('invalid', colorInput.value.length > 1);
+    }
+  });
+
+  colorInput.addEventListener('blur', () => {
+    colorInput.classList.remove('invalid');
+    colorInput.value = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
+  });
+
+  // Initialize hex display
+  colorInput.value = '#ffffff';
 })();
 </script>
 </body>
