@@ -18,15 +18,17 @@
     background-color: #ffffff;
   }
 
+  body.hide-cursor { cursor: none; }
+
   #help-box {
     background: rgba(0, 0, 0, 0.75);
     color: #f0f0f0;
     border-radius: 12px;
     padding: 28px 36px;
-    max-width: 420px;
+    max-width: 460px;
     width: 90%;
     opacity: 1;
-    transition: opacity 1s ease;
+    transition: opacity 2.5s ease;
     user-select: none;
     backdrop-filter: blur(4px);
   }
@@ -44,6 +46,16 @@
     margin-bottom: 18px;
     color: #ffffff;
     text-transform: uppercase;
+  }
+
+  #help-box h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #999;
+    margin: 18px 0 10px;
   }
 
   .binding {
@@ -71,12 +83,30 @@
     flex-shrink: 0;
   }
 
-  kbd:hover {
-    background: rgba(255,255,255,0.3);
+  kbd:hover { background: rgba(255,255,255,0.3); }
+
+  .desc { color: #cccccc; }
+
+  /* ── preset color swatches ─────────────────────────────────────── */
+  #presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .desc {
-    color: #cccccc;
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.25);
+    transition: transform 0.12s, box-shadow 0.12s;
+    flex-shrink: 0;
+  }
+
+  .swatch:hover {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.6);
   }
 </style>
 </head>
@@ -105,19 +135,53 @@
     <kbd data-action="escape">Esc</kbd>
     <span class="desc">Exit fullscreen</span>
   </div>
+
+  <h3>Preset colors</h3>
+  <div id="presets"></div>
 </div>
 
 <script>
 (function () {
   const helpBox = document.getElementById('help-box');
+  const presetsEl = document.getElementById('presets');
   const body = document.body;
 
-  // ── idle timer ──────────────────────────────────────────────────────────────
+  // ── preset colors ───────────────────────────────────────────────────────────
+  // Each entry: [label, hex, hsl-equivalent for currentHsl]
+  const PRESETS = [
+    { label: 'Full white',    hex: '#ffffff', hsl: { h: 0,   s: 0,  l: 100 } },
+    { label: 'Near white',    hex: '#f0ede8', hsl: { h: 30,  s: 20, l: 93  } },
+    { label: 'Warm grey',     hex: '#c8c2b8', hsl: { h: 35,  s: 10, l: 75  } },
+    { label: 'Cool grey',     hex: '#b8bec8', hsl: { h: 220, s: 10, l: 75  } },
+    { label: 'Sage',          hex: '#b2bfb2', hsl: { h: 120, s: 8,  l: 72  } },
+    { label: 'Dusty blue',    hex: '#a8b8c8', hsl: { h: 210, s: 18, l: 72  } },
+    { label: 'Dusty rose',    hex: '#c8adb0', hsl: { h: 354, s: 18, l: 73  } },
+    { label: 'Dusty lavender',hex: '#b8adc8', hsl: { h: 270, s: 16, l: 73  } },
+    { label: 'Near black',    hex: '#1a1a1a', hsl: { h: 0,   s: 0,  l: 10  } },
+    { label: 'Full black',    hex: '#000000', hsl: { h: 0,   s: 0,  l: 0   } },
+  ];
+
+  PRESETS.forEach(preset => {
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = preset.hex;
+    sw.title = preset.label;
+    sw.addEventListener('click', e => {
+      e.stopPropagation();
+      stopCycle();
+      currentHsl = { ...preset.hsl };
+      body.style.backgroundColor = preset.hex;
+      showHelp();
+    });
+    presetsEl.appendChild(sw);
+  });
+
+  // ── idle / help-box timer ───────────────────────────────────────────────────
   let idleTimer = null;
 
   function scheduleHide() {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => helpBox.classList.add('hidden'), 3000);
+    idleTimer = setTimeout(() => helpBox.classList.add('hidden'), 5000);
   }
 
   function showHelp() {
@@ -125,12 +189,42 @@
     scheduleHide();
   }
 
+  function isHelpVisible() {
+    return !helpBox.classList.contains('hidden');
+  }
+
   scheduleHide();
 
+  // ── mouse-cursor hiding ─────────────────────────────────────────────────────
+  let cursorTimer = null;
+
+  function showCursor() {
+    body.classList.remove('hide-cursor');
+    clearTimeout(cursorTimer);
+    // Only schedule hide when help box is not visible
+    if (!isHelpVisible()) scheduleCursorHide();
+  }
+
+  function scheduleCursorHide() {
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(() => body.classList.add('hide-cursor'), 5000);
+  }
+
+  document.addEventListener('mousemove', () => showCursor());
+
+  // When help box becomes visible, cancel cursor-hide and show cursor
+  const observer = new MutationObserver(() => {
+    if (isHelpVisible()) {
+      body.classList.remove('hide-cursor');
+      clearTimeout(cursorTimer);
+    } else {
+      scheduleCursorHide();
+    }
+  });
+  observer.observe(helpBox, { attributes: true, attributeFilter: ['class'] });
+
   // ── background color ────────────────────────────────────────────────────────
-  // Current hue (0–360), saturation, lightness kept at fixed values so
-  // perceived brightness stays roughly constant.
-  let currentHsl = { h: 0, s: 0, l: 100 }; // white in HSL
+  let currentHsl = { h: 0, s: 0, l: 100 }; // white
 
   function hslToHex(h, s, l) {
     s /= 100; l /= 100;
@@ -148,7 +242,6 @@
     body.style.backgroundColor = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
   }
 
-  // Random color at constant lightness (50) and high saturation
   function randomColor() {
     currentHsl = { h: Math.random() * 360, s: 70, l: 55 };
     applyBg();
@@ -161,7 +254,6 @@
 
   function startCycle() {
     if (cycleRaf) return;
-    // If currently white, start at a vivid color
     if (currentHsl.s < 10) currentHsl = { h: 0, s: 70, l: 55 };
     lastTime = null;
     function tick(ts) {
@@ -214,18 +306,13 @@
 
   document.addEventListener('keydown', e => {
     const action = KEY_MAP[e.key];
-    if (action) {
-      dispatch(action);
-      showHelp();
-    } else {
-      showHelp();
-    }
+    if (action) dispatch(action);
+    showHelp();
   });
 
   // ── mouse click ─────────────────────────────────────────────────────────────
   document.addEventListener('click', e => {
-    // kbd clicks are handled separately; body clicks just show help
-    if (!e.target.closest('kbd')) showHelp();
+    if (!e.target.closest('kbd') && !e.target.closest('.swatch')) showHelp();
   });
 
   // ── kbd button clicks ────────────────────────────────────────────────────────
