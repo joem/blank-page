@@ -220,10 +220,23 @@
 
   // ── idle / help-box timer ───────────────────────────────────────────────────
   let idleTimer = null;
+  let mouseInBox = false;
+
+  helpBox.addEventListener('mouseenter', () => {
+    mouseInBox = true;
+    clearTimeout(idleTimer);
+  });
+
+  helpBox.addEventListener('mouseleave', () => {
+    mouseInBox = false;
+    scheduleHide();
+  });
 
   function scheduleHide() {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => helpBox.classList.add('hidden'), 5000);
+    if (!mouseInBox) {
+      idleTimer = setTimeout(() => helpBox.classList.add('hidden'), 5000);
+    }
   }
 
   function showHelp() {
@@ -343,11 +356,15 @@
   }
 
   function stopCycle() {
-    if (cycleRaf) {
-      cancelAnimationFrame(cycleRaf);
-      cycleRaf = null;
-      body.style.transition = '';
-    }
+    if (!cycleRaf) return;
+    cancelAnimationFrame(cycleRaf);
+    cycleRaf = null;
+    // Lock the current color immediately with no transition, then restore it
+    const locked = hslToHex(currentHsl.h, currentHsl.s, currentHsl.l);
+    body.style.transition = 'none';
+    body.style.backgroundColor = locked;
+    setHexDisplay(locked);
+    requestAnimationFrame(() => { body.style.transition = ''; });
   }
 
   // ── fullscreen ──────────────────────────────────────────────────────────────
