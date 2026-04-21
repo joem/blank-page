@@ -13,7 +13,7 @@ dependencies required.
 |-----|--------|
 | `F` | Toggle fullscreen |
 | `R` | Jump to a random color |
-| `C` | Start cycling through colors smoothly |
+| `C` | Toggle color cycling |
 | `Space` | Stop color cycling |
 | `Esc` | Exit fullscreen |
 
@@ -42,6 +42,10 @@ value (`#rrggbb` or `#rgb`) and press a key or click away to apply it.
 
 ## Color cycling
 
-Press `C` to smoothly fade through the full hue range at roughly constant
-perceived brightness. Press `Space` (or click "Stop color cycling") to freeze
-on the current color immediately.
+Press `C` to toggle color cycling. The hue rotates continuously while
+lightness rises and falls sinusoidally, passing through vivid mid-range
+colors and fading in and out through near-black and near-white. The
+transition naturally slows near the dark and light extremes, and hue
+speed also drops there so imperceptible near-black/white colors don't
+race invisibly through the hue wheel. Press `C` again or `Space` to
+freeze on the current color immediately.
