@@ -128,6 +128,14 @@
 
   #color-input:focus { border-color: rgba(255,255,255,0.6); }
   #color-input.invalid { border-color: rgba(255,80,80,0.8); }
+
+  #idle-note {
+    margin-top: 16px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.78rem;
+    color: #777;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -164,6 +172,8 @@
 
   <input id="color-input" type="text" placeholder="#ffffff" maxlength="7"
          spellcheck="false" autocomplete="off">
+
+  <p id="idle-note">This box and the cursor will hide after a few seconds of inactivity.</p>
 </div>
 
 <script>
